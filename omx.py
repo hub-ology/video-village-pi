@@ -1,12 +1,36 @@
-# pyomxplayer based on https://github.com/jbaiter/pyomxplayer
+# OpenMAX-based encoding and playback via Python
+# Player based on https://github.com/jbaiter/pyomxplayer
 import pexpect
 import re
 
 from threading import Thread
 from time import sleep
 
+class Encoder(object):
 
-class OMXPlayer(object):
+    _LAUNCH_CMD = ('/usr/bin/gst-launch-1.0 filesrc location={source_file} ! '
+                   'decodebin ! videoconvert ! videoscale ! '
+                   'video/x-raw,width={width},height={height} ! '
+                   'omxh264enc ! h264parse ! mp4mux ! '
+                   'filesink location={target_file}')
+
+    def __init__(self, source_file, target_file, width=800, height=600):
+        cmd = self._LAUNCH_CMD.format(source_file=source_file,
+                                      target_file=target_file,
+                                      width=800,
+                                      height=600)
+
+        self._process = pexpect.spawn(cmd)
+
+    def is_active(self):
+        return self._process.isalive()
+
+    def stop(self):
+        self._process.sendcontrol('c')
+        self._process.terminate(force=True)
+
+
+class Player(object):
 
     _FILEPROP_REXP = re.compile(r".*audio streams (\d+) video streams (\d+) chapters (\d+) subtitles (\d+).*")
     _VIDEOPROP_REXP = re.compile(r".*Video codec ([\w-]+) width (\d+) height (\d+) profile (-?\d+) fps ([\d.]+).*")
@@ -39,10 +63,14 @@ class OMXPlayer(object):
         self.video['profile'] = int(video_props[3])
         self.video['fps'] = float(video_props[4])
         # Get audio properties
-        audio_props = self._AUDIOPROP_REXP.match(self._process.readline()).groups()
-        self.audio['decoder'] = audio_props[0]
-        (self.audio['channels'], self.audio['rate'],
-         self.audio['bps']) = [int(x) for x in audio_props[1:]]
+        try:
+            audio_props = self._AUDIOPROP_REXP.match(self._process.readline()).groups()
+            self.audio['decoder'] = audio_props[0]
+            (self.audio['channels'], self.audio['rate'],
+             self.audio['bps']) = [int(x) for x in audio_props[1:]]
+        except AttributeError:
+            # this is due to videos with no audio
+            pass
 
         self.finished = False
         self.position = 0
@@ -67,6 +95,9 @@ class OMXPlayer(object):
             else:
                 self.position = float(self._process.match.group(1))
             sleep(0.05)
+
+    def is_active(self):
+        return self._process.isalive()
 
     def toggle_pause(self):
         if self._process.send(self._PAUSE_CMD):
