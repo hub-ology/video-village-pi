@@ -27,7 +27,7 @@ sudo apt-get install -y libgstreamer1.0-0 libgstreamer1.0-0-dbg \
 
 
 #Set up Python related components
-sudo apt-get install -y libffi5 python-virtualenv git
+sudo apt-get install -y libffi5 python-virtualenv
 curl -L https://bitbucket.org/pypy/pypy/downloads/pypy2-v5.3.1-linux-armhf-raspbian.tar.bz2 \
      -o pypy2-v5.3.1-linux-armhf-raspbian.tar.bz2
 sudo tar -xjf pypy2-v5.3.1-linux-armhf-raspbian.tar.bz2 -C /usr/local --strip-components=1

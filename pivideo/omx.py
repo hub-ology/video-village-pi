@@ -37,6 +37,7 @@ class Player(object):
     _AUDIOPROP_REXP = re.compile(r"Audio codec (\w+) channels (\d+) samplerate (\d+) bitspersample (\d+).*")
     _STATUS_REXP = re.compile(r"M:\s*(\d+).*")
     _DONE_REXP = re.compile(r"have a nice day.*")
+    _DURATION_REXP = re.compile(r".*Duration: (\s),.*")
 
     _LAUNCH_CMD = '/usr/bin/omxplayer -s %s %s'
     _PAUSE_CMD = 'p'
@@ -45,14 +46,13 @@ class Player(object):
     _FASTER_CMD = '2'
     _SLOWER_CMD = '1'
 
-    paused = False
-    subtitles_visible = True
-
     def __init__(self, mediafile, args=None, start_playback=False):
         if not args:
             args = ""
         cmd = self._LAUNCH_CMD % (mediafile, args)
         self._process = pexpect.spawn(cmd)
+        self.paused = False
+        self.subtitles_visible = True
 
         self.video = dict()
         self.audio = dict()

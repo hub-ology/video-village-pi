@@ -20,7 +20,7 @@ using your favorite WSGI HTTP server.  Here's an example using gunicorn:
 
 ::
 
-    gunicorn -w 4 -k gevent -b 0.0.0.0:5000 video:app
+    gunicorn -w 1 -b 0.0.0.0:5000 pivideo.api:app
 
 
 Interacting with the Video Village Raspberry Pis
@@ -67,5 +67,5 @@ Transcode a video that's been previously sync'ed to the Pi
 
     curl -H "Content-Type: application/json" -XPOST -d '{"source_file": "test.mp4", "target_file": "test_800x600.mp4", "width": 800, "height": 600}' http://IP_ADDRESS:5000/transcode
     {
-    "status": "running"
+    "status": "queued"
     }
