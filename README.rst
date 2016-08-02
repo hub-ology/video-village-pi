@@ -20,11 +20,7 @@ using your favorite WSGI HTTP server.  Here's an example using gunicorn:
 
 ::
 
-<<<<<<< HEAD
     gunicorn -w 1 -b 0.0.0.0:5000 pivideo.api:app
-=======
-    gunicorn -w 4 -k gevent -b 0.0.0.0:5000 video:app
->>>>>>> a58e6ee2ea7b3caaefe5cb82dccc900d2d4adb6e
 
 
 Interacting with the Video Village Raspberry Pis
