@@ -53,7 +53,7 @@ class Player(object):
         self._process = pexpect.spawn(cmd)
         self.paused = False
         self.subtitles_visible = True
-
+        self.mediafile = mediafile
         self.video = dict()
         self.audio = dict()
         # Get video properties
@@ -108,5 +108,8 @@ class Player(object):
             self.subtitles_visible = not self.subtitles_visible
 
     def stop(self):
+        self.mediafile = None
+        self.video = {}
+        self.audio = {}
         self._process.send(self._QUIT_CMD)
         self._process.terminate(force=True)

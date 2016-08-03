@@ -17,9 +17,11 @@ def play():
         player.stop()
 
     video_file_name = request.json.get('video')
-    player = omx.Player(video_file_name)
-
-    return flask.jsonify(status='running', video=player.video, audio=player.audio)
+    if video_file_name:
+        player = omx.Player(video_file_name)
+        return flask.jsonify(status='running', video=player.video, audio=player.audio)
+    else:
+        return flask.jsonify(status='stopped')
 
 
 @app.route("/transcode", methods=["POST"])
@@ -37,7 +39,19 @@ def transcode():
 @app.route("/status", methods=["GET"])
 def status():
     global encoder, player
+
+    encoder_status = {
+        'active': encoder.is_active() if encoder else False,
+        'queue': [item for item in transcode_queue]
+    }
+    player_active = player.is_active() if player else False
+    player_status = {
+        'active': player_active,
+        'audio': player.audio if player_active else {},
+        'video': player.video if player_active else {},
+        'mediafile': player.mediafile if player_active else None 
+    }
+
     return flask.jsonify(hardware_address=get_hardware_address('eth0'),
-                         encoder_active=encoder.is_active() if encoder else False,
-                         player_active=player.is_active() if player else False,
-                         transcode_queue=[item for item in transcode_queue])
+                         encoder=encoder_status,
+                         player=player_status)

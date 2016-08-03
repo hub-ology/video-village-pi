@@ -52,10 +52,12 @@ def register_pi():
                                json={'mac_address': mac_address})
         logger.info(result.content)
         #TODO: add retry on failures such that registration is attempted again
-        #      until it's succes
+        #      until it's successful
+
 
 def seconds_until_next_heartbeat():
-    return 60 - datetime.datetime.utcnow().second
+    now = datetime.datetime.utcnow()
+    return 60.0 - (now.second + (now.microsecond * 0.000001))
 
 
 def heartbeat():
