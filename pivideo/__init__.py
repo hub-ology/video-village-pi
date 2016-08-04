@@ -1,26 +1,57 @@
 from __future__ import absolute_import
 import atexit
 import collections
+import contextlib
 import datetime
 import logging
 import socket
 import fcntl
+import os
 import requests
 import schedule
 import struct
 import threading
 import time
+from urlparse import urlparse
 from pivideo import omx
 
+
+FILE_CACHE = '/file_cache'
 
 logging.basicConfig(format='%(asctime)s	%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 player = None
+photo_overlay = None
 encoder = None
 
 transcode_queue = collections.deque()
+
+def cache_file(file_reference):
+    """
+    Locate a cached copy of a file.  If the file reference is not found in the
+    cache and it's a network based resource, we'll fetch it and cache it and return
+    a reference to the newly cached file.
+
+    :returns: a string representing an absolute path to a local/cached copy of the file
+    """
+    reference_parts = urlparse(file_reference)
+    if reference_parts.netloc:
+        local_filename = os.path.join(FILE_CACHE, reference_parts.path.split('/')[-1])
+        if not os.path.exists(local_filename):
+            with contextlib.closing(requests.get(file_reference, stream=True)) as response:
+                 with open(local_filename, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=1024):
+                        if chunk:
+                            f.write(chunk)
+        return local_filename
+    else:
+        if os.path.exists(file_reference):
+            return file_reference
+        else:
+            local_filename = os.path.join(FILE_CACHE, file_reference)
+            return local_filename
 
 
 def get_ip_address(ifname):
@@ -97,5 +128,7 @@ def shutdown_handler():
         player.stop()
     if encoder:
         encoder.stop()
+    if photo_overlay:
+        photo_overlay.stop()
 
 atexit.register(shutdown_handler)

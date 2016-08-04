@@ -30,6 +30,26 @@ class Encoder(object):
         self._process.terminate(force=True)
 
 
+class PhotoOverlay(object):
+
+    _LAUNCH_CMD = '/usr/local/bin/pngview -l {layer} {photofile} -x {x} -y {y}'
+
+    def __init__(self, photofile, layer=2, x=0, y=0):
+        self.photo = photofile
+        self.layer = layer
+        self.x = x
+        self.y = y
+        cmd = self._LAUNCH_CMD.format(layer=layer, photofile=photofile, x=x, y=y)
+        self._process = pexpect.spawn(cmd)
+
+    def is_active(self):
+        return self._process.isalive()
+
+    def stop(self):
+        self._process.sendcontrol('c')
+        self._process.terminate(force=True)
+
+
 class Player(object):
 
     _FILEPROP_REXP = re.compile(r".*audio streams (\d+) video streams (\d+) chapters (\d+) subtitles (\d+).*")

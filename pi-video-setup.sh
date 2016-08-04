@@ -25,6 +25,17 @@ sudo apt-get install -y libgstreamer1.0-0 libgstreamer1.0-0-dbg \
                         libgstreamer-plugins-base1.0-0 \
                         libgstreamer-plugins-base1.0-dev
 
+# make sure git is available to clone code for pngview
+sudo apt-get install -y git
+# Ensure libjpeg is available for working with photos
+sudo apt-get install -y libjpeg-dev
+
+# build and install the pngview utility
+git clone https://github.com/AndrewFromMelbourne/raspidmx.git
+cd raspidmx/pngview
+make
+sudo cp pngview /usr/local/bin/
+cd -
 
 #Set up Python related components
 sudo apt-get install -y libffi5 python-virtualenv
@@ -36,6 +47,10 @@ virtualenv -p pypy video-env
 source video-env/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
+
+# set up file cache directory
+sudo mkdir -p /file_cache
+
 
 #TODO: set up services to keep video village pi API running after restarts, etc
 
