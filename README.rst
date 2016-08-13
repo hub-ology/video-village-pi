@@ -10,7 +10,7 @@ you can run the pi-setup.sh script to install the necessary
 dependencies.
 ::
 
-    ./pi-setup.sh
+    ./pi-video-setup.sh
 
 
 Starting the API services

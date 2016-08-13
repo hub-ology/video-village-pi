@@ -2,9 +2,11 @@
 # Player based on https://github.com/jbaiter/pyomxplayer
 import pexpect
 import re
-
+from collections import deque
 from threading import Thread
 from time import sleep
+import pivideo
+
 
 class Encoder(object):
 
@@ -66,7 +68,8 @@ class Player(object):
     _FASTER_CMD = '2'
     _SLOWER_CMD = '1'
 
-    def __init__(self, mediafile, args=None, start_playback=False):
+    def __init__(self, mediafile, args=None, pause_playback=False,
+                 finished_callback=None):
         if not args:
             args = ""
         cmd = self._LAUNCH_CMD % (mediafile, args)
@@ -77,11 +80,14 @@ class Player(object):
         self.video = dict()
         self.audio = dict()
         # Get video properties
-        video_props = self._VIDEOPROP_REXP.match(self._process.readline()).groups()
-        self.video['decoder'] = video_props[0]
-        self.video['dimensions'] = tuple(int(x) for x in video_props[1:3])
-        self.video['profile'] = int(video_props[3])
-        self.video['fps'] = float(video_props[4])
+        try:
+            video_props = self._VIDEOPROP_REXP.match(self._process.readline()).groups()
+            self.video['decoder'] = video_props[0]
+            self.video['dimensions'] = tuple(int(x) for x in video_props[1:3])
+            self.video['profile'] = int(video_props[3])
+            self.video['fps'] = float(video_props[4])
+        except AttributeError:
+            pass
         # Get audio properties
         try:
             audio_props = self._AUDIOPROP_REXP.match(self._process.readline()).groups()
@@ -93,12 +99,13 @@ class Player(object):
             pass
 
         self.finished = False
+        self.finished_callback = finished_callback
         self.position = 0
 
         self._position_thread = Thread(target=self._get_position)
         self._position_thread.start()
 
-        if start_playback:
+        if pause_playback:
             self.toggle_pause()
         self.toggle_subtitles()
 
@@ -111,6 +118,8 @@ class Player(object):
             if index == 1: continue
             elif index in (2, 3):
                 self.finished = True
+                if self.finished_callback:
+                    self.finished_callback()
                 break
             else:
                 self.position = float(self._process.match.group(1))
@@ -133,3 +142,39 @@ class Player(object):
         self.audio = {}
         self._process.send(self._QUIT_CMD)
         self._process.terminate(force=True)
+
+
+class PlayList(object):
+
+    def __init__(self, videos, loop=True):
+        if videos is None:
+            videos = []
+        self.videos = videos
+        self.video_queue = deque(videos)
+        self.loop = loop
+        self.player = None
+        self.stopped = True
+
+    def cache_videos(self):
+        pass
+
+    def next_video(self):
+        if not self.stopped:
+            if self.loop:
+                self.video_queue.rotate(-1)
+            else:
+                self.video_queue.popleft()
+            self.play()
+
+    def play(self):
+        if self.player:
+            self.player.stop()
+        if len(self.video_queue) > 0:
+            video_file_name = pivideo.cache_file(self.video_queue[0]['video'])
+            self.player = Player(video_file_name, finished_callback=self.next_video)
+            self.stopped = False
+
+    def stop(self):
+        self.stopped = True
+        if self.player:
+            self.player.stop()

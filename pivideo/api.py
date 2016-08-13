@@ -1,11 +1,14 @@
+from __future__ import absolute_import
+import logging
 import flask
 from flask import Flask, request
 
 import pivideo
 from pivideo import get_ip_address, get_hardware_address
-from pivideo import player, encoder, transcode_queue, photo_overlay
+from pivideo import player, encoder, transcode_queue, photo_overlay, play_list
 from pivideo import omx
 
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -30,18 +33,29 @@ def overlay():
     else:
         return flask.jsonify(status='stopped')
 
+def playback_finished():
+    logger.info('playback finished!')
+
 @app.route("/play", methods=["POST"])
 def play():
-    global player
+    global player, play_list
     if player:
         # stop playback if a video has already been started
         player.stop()
+    if play_list:
+        play_list.stop()
 
     video = request.json.get('video')
+    play_list_videos = request.json.get('play_list')
     if video:
         video_file_name = pivideo.cache_file(video)
-        player = omx.Player(video_file_name)
+        player = omx.Player(video_file_name, finished_callback=playback_finished)
         return flask.jsonify(status='running', video=player.video, audio=player.audio)
+    elif play_list_videos:
+        loop = request.json.get('loop', False)
+        play_list = omx.PlayList(play_list_videos, loop=loop)
+        play_list.play()
+        return flask.jsonify(status='running')
     else:
         return flask.jsonify(status='stopped')
 
