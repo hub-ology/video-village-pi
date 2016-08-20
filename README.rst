@@ -10,7 +10,17 @@ you can run the pi-setup.sh script to install the necessary
 dependencies.
 ::
 
-    ./pi-setup.sh
+    ./pi-video-setup.sh
+
+After the dependencies have been installed, you may source the virtual environment
+that was created by the set up script by running:
+::
+
+    source video-env/bin/activate
+
+This will ensure that you have all of the necessary Python dependencies
+readily available for running the project's tests or the WSGI HTTP server
+to provide the API services.
 
 
 Starting the API services

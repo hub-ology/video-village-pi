@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 player = None
+play_list = None
 photo_overlay = None
 encoder = None
 
@@ -36,9 +37,10 @@ def cache_file(file_reference):
 
     :returns: a string representing an absolute path to a local/cached copy of the file
     """
-    reference_parts = urlparse(file_reference)
-    if reference_parts.netloc:
-        local_filename = os.path.join(FILE_CACHE, reference_parts.path.split('/')[-1])
+    url = urlparse(file_reference)
+    if url.netloc:
+        converted_filename = '{0}{1}'.format(url.netloc, url.path.replace('/', '-'))
+        local_filename = os.path.join(FILE_CACHE, converted_filename)
         if not os.path.exists(local_filename):
             with contextlib.closing(requests.get(file_reference, stream=True)) as response:
                  with open(local_filename, 'wb') as f:
