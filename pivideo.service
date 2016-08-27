@@ -1,0 +1,11 @@
+[Unit]
+Description=PiVideo
+
+[Service]
+Restart=always
+RestartSec=1
+TimeoutStartSec=0
+ExecStart=/home/pi/video-env/bin/gunicorn --chdir /home/pi -w 1 -b 0.0.0.0:5000 pivideo.api:app
+
+[Install]
+WantedBy=multi-user.target

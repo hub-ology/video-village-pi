@@ -7,6 +7,7 @@ import pivideo
 from pivideo import get_ip_address, get_hardware_address
 from pivideo import player, encoder, transcode_queue, photo_overlay, play_list
 from pivideo import omx
+from pivideo.projector import Projector
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,30 @@ def play():
         return flask.jsonify(status='stopped')
 
 
+@app.route("/projector/on", methods=["POST"])
+def projector_on():
+    success = False
+    try:
+        with Projector() as p:
+            success = p.power_on()
+    except:
+        logger.exception('Unable to turn on projector.  Is it connected?')
+
+    return flask.jsonify(status=success)
+
+
+@app.route("/projector/off", methods=["POST"])
+def projector_off():
+    success = False
+    try:
+        with Projector() as p:
+            success = p.power_off()
+    except:
+        logger.exception('Unable to turn off projector.  Is it connected?')
+
+    return flask.jsonify(status=success)
+
+
 @app.route("/transcode", methods=["POST"])
 def transcode():
     video_info = {
@@ -74,7 +99,7 @@ def transcode():
 
 @app.route("/status", methods=["GET"])
 def status():
-    global encoder, player
+    global encoder, player, play_list
 
     encoder_status = {
         'active': encoder.is_active() if encoder else False,
@@ -87,6 +112,17 @@ def status():
         'video': player.video if player_active else {},
         'mediafile': player.mediafile if player_active else None
     }
+
+    play_list_active = play_list is not None and not play_list.stopped
+    play_list_status = {
+        'active': play_list_active,
+        'audio': play_list.player.audio if play_list_active and play_list.player else {},
+        'video': play_list.player.video if play_list_active and play_list.player else {},
+        'mediafile': play_list.player.mediafile if play_list_active and play_list.player else None,
+        'videos': play_list.videos if play_list_active else [],
+        'loop': play_list.loop if play_list_active else False
+    }
+
     overlay_active = photo_overlay.is_active() if photo_overlay else False
     overlay_status = {
         'active': overlay_active,
@@ -96,7 +132,20 @@ def status():
         'y': photo_overlay.y if photo_overlay else None
     }
 
+    projector_status = {
+        "connected": False
+    }
+
+    try:
+        with Projector() as p:
+            projector_status['on'] = p.is_on()
+            projector_status['connected'] = True
+    except:
+        logger.exception("Unable to determine current projector status.  Is it connected?")
+
     return flask.jsonify(hardware_address=get_hardware_address('eth0'),
                          encoder=encoder_status,
                          player=player_status,
-                         overlay=overlay_status)
+                         play_list=play_list_status,
+                         overlay=overlay_status,
+                         projector=projector_status)
