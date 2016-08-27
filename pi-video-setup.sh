@@ -51,8 +51,10 @@ pip install -r requirements.txt
 # set up file cache directory
 sudo mkdir -p /file_cache
 
-
-#TODO: set up services to keep video village pi API running after restarts, etc
+#set up services to keep video village pi API running after restarts, etc
+sudo cp pivdieo.service /etc/systemd/system/pivideo.service
+sudo systemctl enable /etc/systemd/system/pivideo.service
+sudo systemctl start pivideo.service
 
 #TODO: use nginx with https://letsencrypt.org for SSL certificate management
 
