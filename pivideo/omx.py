@@ -107,8 +107,8 @@ class Player(object):
         self.paused = False
         self.subtitles_visible = True
         self.mediafile = mediafile
-        self.video = dict()
-        self.audio = dict()
+        self.video = {}
+        self.audio = {}
         # Get video properties
         try:
             video_props = self._VIDEOPROP_REXP.match(self._process.readline()).groups()

@@ -4,7 +4,7 @@ import flask
 from flask import Flask, request
 
 import pivideo
-from pivideo import get_ip_address, get_hardware_address
+from pivideo.networking import get_ip_address, get_hardware_address
 from pivideo import player, encoder, transcode_queue, photo_overlay, play_list
 from pivideo import omx
 from pivideo.projector import Projector
