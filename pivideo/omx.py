@@ -213,6 +213,8 @@ class PlayList(object):
                 video_file_name = pivideo.cache_file(video_entry['video'])
                 self.player = Player(video_file_name, finished_callback=self.next_video)
                 self.stopped = False
+        else:
+            self.stopped = True
 
     def stop(self):
         self.stopped = True

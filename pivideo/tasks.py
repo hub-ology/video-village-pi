@@ -1,6 +1,10 @@
 from __future__ import absolute_import
+import arrow
+import datetime
 import logging
 import schedule
+from pivideo import play_list
+from pivideo import omx
 from pivideo.projector import Projector
 from pivideo.sync import register_pi, current_show_schedule
 
@@ -34,6 +38,8 @@ def pre_show_task():
                 projector.reset_settings()
                 projector.rear_table_position()
                 projector.input_source_hdmi()
+    except:
+        logger.exception('Problem executing pre show set up')
     finally:
         return schedule.CancelJob
 
@@ -44,7 +50,7 @@ def post_show_task():
         to a proper "idle" state until it's time for the next show.
         Post show
     """
-    from pivideo import play_list
+    global play_list
 
     try:
         with Projector() as projector:
@@ -52,33 +58,36 @@ def post_show_task():
                 projector.power_off()
         if play_list:
             play_list.stop()
+    except:
+        logger.exception('Problem executing post show clean up')
     finally:
         return schedule.CancelJob
 
 
-def showtime_task(play_list_videos):
+def showtime_task(play_list_videos, loop=False):
     """
         This task is used to kick off a show at a scheduled time.
         It is provided with play list data based on the Video Village Window API
         JSON.
     """
-    from pivideo import play_list
-
+    global play_list
     try:
-        print(play_list_data)
-        play_list = omx.PlayList(play_list_videos, loop=False)
+        play_list = omx.PlayList(play_list_videos, loop=loop)
         play_list.play()
+    except:
+        logger.exception('Problem starting scheduled play list')
     finally:
-        # Once the show is over, we'll stop running this task
+        # Once the show is going, we'll stop running this task
         return schedule.CancelJob
 
 
-def schedule_show(start_time, end_time, play_list_videos):
+def schedule_show(start_time, end_time, play_list_videos, loop=False):
     """
         Establish scheduled tasks necessary for a future show
     """
-    schedule.every().day.at('').do(pre_show_task)
-    schedule.every().day.at(start_time).do(showtime_task, play_list_videos)
+    pre_show_time = (arrow.get(start_time, 'HH:mm') - datetime.timedelta(minutes=2)).format('HH:mm')
+    schedule.every().day.at(pre_show_time).do(pre_show_task)
+    schedule.every().day.at(start_time).do(showtime_task, play_list_videos, loop=loop)
     schedule.every().day.at(end_time).do(post_show_task)
 
 

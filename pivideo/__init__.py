@@ -1,9 +1,16 @@
 from __future__ import absolute_import
+import logging
+
+logging.basicConfig(format='%(asctime)s	%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
+
+play_list = None
+photo_overlay = None
+encoder = None
+
 import atexit
 import collections
 import contextlib
 import datetime
-import logging
 import os
 import requests
 import schedule
@@ -16,14 +23,7 @@ from pivideo.tasks import registration_task, fetch_show_schedule_task
 
 FILE_CACHE = '/file_cache'
 
-logging.basicConfig(format='%(asctime)s	%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-player = None
-play_list = None
-photo_overlay = None
-encoder = None
 
 transcode_queue = collections.deque()
 
@@ -86,7 +86,7 @@ def heartbeat():
 def setup_core_tasks():
     schedule.every(1).seconds.do(register_pi)
     schedule.every(30).minutes.do(fetch_show_schedule_task)
-    
+
 
 heartbeat_thread = threading.Thread(target=heartbeat)
 heartbeat_thread.daemon = True
@@ -94,8 +94,6 @@ heartbeat_thread.start()
 
 
 def shutdown_handler():
-    if player:
-        player.stop()
     if encoder:
         encoder.stop()
     if photo_overlay:
