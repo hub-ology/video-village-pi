@@ -187,8 +187,13 @@ class PlayList(object):
         self.stopped = True
 
     def cache_videos(self):
+        """
+            Cache videos referenced on the play list
+        """
         for video_entry in self.videos:
-            pivideo.cache_file(video_entry['video'])
+            video_link = video_entry.get('video')
+            if video_link:
+                pivideo.cache_file(video_link)
 
     def next_video(self):
         if not self.stopped:

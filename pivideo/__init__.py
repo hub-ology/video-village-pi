@@ -18,7 +18,7 @@ import threading
 import time
 from urlparse import urlparse
 from pivideo import omx
-from pivideo.tasks import registration_task, fetch_show_schedule_task
+from pivideo.tasks import registration_task, fetch_show_schedule_task, setup_core_tasks
 
 
 FILE_CACHE = '/file_cache'
@@ -63,10 +63,15 @@ def heartbeat():
     global encoder
     global heartbeat_timer
 
+    setup_core_tasks()
+
     while True:
         try:
             time.sleep(seconds_until_next_heartbeat())
             logger.debug('heartbeat')
+
+            schedule.run_pending()
+
             if not encoder or not encoder.is_active():
                 try:
                     video_info = transcode_queue.popleft()
@@ -79,14 +84,8 @@ def heartbeat():
                                           video_info.get('target_file'),
                                           width=video_info.get('width'),
                                           height=video_info.get('height'))
-            schedule.run_pending()
         except:
             logger.exception('Error during heartbeat timer processing:')
-
-def setup_core_tasks():
-    schedule.every(1).seconds.do(register_pi)
-    schedule.every(30).minutes.do(fetch_show_schedule_task)
-
 
 heartbeat_thread = threading.Thread(target=heartbeat)
 heartbeat_thread.daemon = True

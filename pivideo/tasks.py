@@ -81,10 +81,25 @@ def showtime_task(play_list_videos, loop=False):
         return schedule.CancelJob
 
 
+def cache_videos_task(play_list_videos):
+    """
+        Ensure all videos referenced in a play list are cached locally on the pi
+    """
+    try:
+        play_list = omx.PlayList(play_list_videos)
+        play_list.cache_videos()
+    except:
+        logger.exception('Problem caching videos')
+    else:
+        # Once the videos have been cached, we'll cancel this task
+        return schedule.CancelJob
+
+
 def schedule_show(start_time, end_time, play_list_videos, loop=False):
     """
         Establish scheduled tasks necessary for a future show
     """
+    schedule.every(1).seconds.do(cache_videos_task, play_list_videos)
     pre_show_time = (arrow.get(start_time, 'HH:mm') - datetime.timedelta(minutes=2)).format('HH:mm')
     schedule.every().day.at(pre_show_time).do(pre_show_task)
     schedule.every().day.at(start_time).do(showtime_task, play_list_videos, loop=loop)
@@ -101,6 +116,17 @@ def fetch_show_schedule_task():
         current_show = current_show_schedule()
         if current_show:
             # Set up scheduled tasks to run the show
-            schedule_show('', '', [])
+            # TODO: map village windows API response to a scheduled pi show
+            #schedule_show('', '', [])
+            pass
     except:
         logger.exception('Problem checking for show schedule information')
+
+
+def setup_core_tasks():
+    """
+        Define the core tasks schedule
+        This includes tasks to register the pi, check for scheduled show information, etc.
+    """
+    schedule.every(1).seconds.do(registration_task)
+    schedule.every(30).minutes.do(fetch_show_schedule_task)
