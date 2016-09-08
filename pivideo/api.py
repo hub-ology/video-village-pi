@@ -25,11 +25,17 @@ def overlay():
         photo_overlay.stop()
 
     photo = request.json.get('photo')
+    title = request.json.get('title')
+    x = request.json.get('x', 0)
+    y = request.json.get('y', 0)
+
     if photo:
         photo_file_name = pivideo.cache_file(photo)
-        x = request.json.get('x', 0)
-        y = request.json.get('y', 0)
         photo_overlay = omx.PhotoOverlay(photo_file_name, x=x, y=y)
+        return flask.jsonify(status='active')
+    elif title:
+        subtitle = request.json.get('subtitle')
+        photo_overlay = omx.PhotoOverlay(title=title, subtitle=subtitle, x=x, y=y)
         return flask.jsonify(status='active')
     else:
         return flask.jsonify(status='stopped')

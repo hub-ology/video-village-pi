@@ -58,7 +58,8 @@ class PhotoOverlay(object):
             if self.y == 0:
                 self.y = 820
 
-        cmd = self._LAUNCH_CMD.format(layer=layer, photofile=self.photo, x=x, y=y)
+        cmd = self._LAUNCH_CMD.format(layer=layer, photofile=self.photo,
+                                      x=self.x, y=self.y)
         self._process = pexpect.spawn(cmd)
 
     def construct_lower_third_overlay(self, title, subtitle):
