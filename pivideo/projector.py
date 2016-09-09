@@ -55,7 +55,7 @@ class Projector(object):
                                          parity=serial.PARITY_NONE,
                                          stopbits=serial.STOPBITS_ONE,
                                          writeTimeout = 0,
-                                         timeout=5,
+                                         timeout=1,
                                          xonxoff=False,
                                          rtscts=False,
                                          dsrdtr=False)

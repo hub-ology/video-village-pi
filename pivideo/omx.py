@@ -3,9 +3,20 @@
 import pexpect
 import re
 from collections import deque
+import os
 from threading import Thread
 from time import sleep
 import pivideo
+import PIL
+from PIL import ImageFont
+from PIL import Image
+from PIL import ImageDraw
+import uuid
+
+
+OVERLAY_TITLE_FONT = "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf"
+OVERLAY_SUBTITLE_FONT = "/usr/share/fonts/truetype/freefont/FreeSerifItalic.ttf"
+LOWER_THIRD_BACKGROUND = (17, 70, 153)
 
 
 class Encoder(object):
@@ -36,13 +47,33 @@ class PhotoOverlay(object):
 
     _LAUNCH_CMD = '/usr/local/bin/pngview -l {layer} {photofile} -x {x} -y {y}'
 
-    def __init__(self, photofile, layer=2, x=0, y=0):
-        self.photo = photofile
+    def __init__(self, photofile=None, title='', subtitle='', layer=2, x=0, y=0):
         self.layer = layer
         self.x = x
         self.y = y
-        cmd = self._LAUNCH_CMD.format(layer=layer, photofile=photofile, x=x, y=y)
+
+        self.photo = photofile
+        if self.photo is None:
+            self.construct_lower_third_overlay(title, subtitle)
+            if self.y == 0:
+                self.y = 820
+
+        cmd = self._LAUNCH_CMD.format(layer=layer, photofile=self.photo,
+                                      x=self.x, y=self.y)
         self._process = pexpect.spawn(cmd)
+
+    def construct_lower_third_overlay(self, title, subtitle):
+        title_font = ImageFont.truetype(OVERLAY_TITLE_FONT ,150)
+        sub_title_font = ImageFont.truetype(OVERLAY_TITLE_FONT ,72)
+        img = Image.new("RGBA", (1920, 260), LOWER_THIRD_BACKGROUND)
+        draw = ImageDraw.Draw(img)
+        if title:
+            draw.text((0, 0), title, (255, 255, 255), font=title_font)
+        if subtitle:
+            draw.text((0, 175), subtitle, (255, 255, 255), font=sub_title_font)
+        draw = ImageDraw.Draw(img)
+        self.photo = os.path.join(pivideo.FILE_CACHE, '{0}.png'.format(uuid.uuid1()))
+        img.save(self.photo)
 
     def is_active(self):
         return self._process.isalive()
@@ -77,8 +108,8 @@ class Player(object):
         self.paused = False
         self.subtitles_visible = True
         self.mediafile = mediafile
-        self.video = dict()
-        self.audio = dict()
+        self.video = {}
+        self.audio = {}
         # Get video properties
         try:
             video_props = self._VIDEOPROP_REXP.match(self._process.readline()).groups()
@@ -153,10 +184,17 @@ class PlayList(object):
         self.video_queue = deque(videos)
         self.loop = loop
         self.player = None
+        self.overlay = None
         self.stopped = True
 
     def cache_videos(self):
-        pass
+        """
+            Cache videos referenced on the play list
+        """
+        for video_entry in self.videos:
+            video_link = video_entry.get('video')
+            if video_link:
+                pivideo.cache_file(video_link)
 
     def next_video(self):
         if not self.stopped:
@@ -167,14 +205,26 @@ class PlayList(object):
             self.play()
 
     def play(self):
+        if self.overlay:
+            self.overlay.stop()
         if self.player:
             self.player.stop()
         if len(self.video_queue) > 0:
-            video_file_name = pivideo.cache_file(self.video_queue[0]['video'])
-            self.player = Player(video_file_name, finished_callback=self.next_video)
-            self.stopped = False
+            video_entry = self.video_queue[0]
+            if 'video' in video_entry:
+                if 'title' in video_entry:
+                    subtitle = video_entry.get('subtitle', '')
+                    self.overlay = PhotoOverlay(title=video_entry['title'],
+                                                subtitle=subtitle)
+                video_file_name = pivideo.cache_file(video_entry['video'])
+                self.player = Player(video_file_name, finished_callback=self.next_video)
+                self.stopped = False
+        else:
+            self.stopped = True
 
     def stop(self):
         self.stopped = True
+        if self.overlay:
+            self.overlay.stop()
         if self.player:
             self.player.stop()

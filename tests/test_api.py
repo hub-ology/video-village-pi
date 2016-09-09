@@ -15,7 +15,6 @@ def test_status_api():
         response_data = json.loads(response.data)
         nose.tools.assert_false(response_data['encoder']['active'])
         nose.tools.assert_false(response_data['overlay']['active'])
-        nose.tools.assert_false(response_data['player']['active'])
         nose.tools.assert_false(response_data['play_list']['active'])
         nose.tools.assert_false(response_data['projector']['connected'])
         nose.tools.assert_equals([], response_data['encoder']['queue'])

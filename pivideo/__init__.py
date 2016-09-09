@@ -1,31 +1,29 @@
 from __future__ import absolute_import
+import logging
+
+logging.basicConfig(format='%(asctime)s	%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
+
+play_list = None
+photo_overlay = None
+encoder = None
+
 import atexit
 import collections
 import contextlib
 import datetime
-import logging
-import socket
-import fcntl
 import os
 import requests
 import schedule
-import struct
 import threading
 import time
 from urlparse import urlparse
 from pivideo import omx
+from pivideo.tasks import registration_task, fetch_show_schedule_task, setup_core_tasks
 
 
 FILE_CACHE = '/file_cache'
 
-logging.basicConfig(format='%(asctime)s	%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-player = None
-play_list = None
-photo_overlay = None
-encoder = None
 
 transcode_queue = collections.deque()
 
@@ -56,38 +54,6 @@ def cache_file(file_reference):
             return local_filename
 
 
-def get_ip_address(ifname):
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        return socket.inet_ntoa(fcntl.ioctl(
-            s.fileno(),
-            0x8915,  # SIOCGIFADDR
-            struct.pack('256s', ifname[:15])
-        )[20:24])
-    except IOError:
-        return ''
-
-
-def get_hardware_address(ifname):
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack('256s', ifname[:15]))
-        return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
-    except IOError:
-        return ''
-
-
-def register_pi():
-    mac_address = get_hardware_address('eth0')
-    if mac_address:
-        result = requests.post('http://videovillage.seeingspartanburg.com/api/pis/register/',
-                               headers={'X-HUBOLOGY-VIDEO-VILLAGE-PI': mac_address},
-                               json={'mac_address': mac_address})
-        logger.info(result.content)
-        #TODO: add retry on failures such that registration is attempted again
-        #      until it's successful
-
-
 def seconds_until_next_heartbeat():
     now = datetime.datetime.utcnow()
     return 60.0 - (now.second + (now.microsecond * 0.000001))
@@ -97,12 +63,15 @@ def heartbeat():
     global encoder
     global heartbeat_timer
 
-    register_pi()
+    setup_core_tasks()
 
     while True:
         try:
             time.sleep(seconds_until_next_heartbeat())
-            logger.info('heartbeat')
+            logger.debug('heartbeat')
+
+            schedule.run_pending()
+
             if not encoder or not encoder.is_active():
                 try:
                     video_info = transcode_queue.popleft()
@@ -115,10 +84,8 @@ def heartbeat():
                                           video_info.get('target_file'),
                                           width=video_info.get('width'),
                                           height=video_info.get('height'))
-            schedule.run_pending()
         except:
             logger.exception('Error during heartbeat timer processing:')
-
 
 heartbeat_thread = threading.Thread(target=heartbeat)
 heartbeat_thread.daemon = True
@@ -126,8 +93,6 @@ heartbeat_thread.start()
 
 
 def shutdown_handler():
-    if player:
-        player.stop()
     if encoder:
         encoder.stop()
     if photo_overlay:
