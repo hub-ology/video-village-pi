@@ -57,6 +57,9 @@ curl -L https://bitbucket.org/pypy/pypy/downloads/pypy2-v5.3.1-linux-armhf-raspb
      -o pypy2-v5.3.1-linux-armhf-raspbian.tar.bz2
 sudo tar -xjf pypy2-v5.3.1-linux-armhf-raspbian.tar.bz2 -C /usr/local --strip-components=1
 
+curl -L https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-arm.zip -o ngrok.zip
+unzip ngrok.zip
+
 curl -L https://github.com/hub-ology/video-village-pi/archive/master.zip -o video-village-pi.zip
 unzip-strip video-village-pi.zip
 
