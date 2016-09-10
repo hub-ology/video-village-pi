@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import datetime
 import logging
 import requests
-from pivideo.networking import get_hardware_address
+from pivideo import PI_HARDWARE_ADDRESS
 
 logger = logging.getLogger(__name__)
 
@@ -14,13 +14,9 @@ BASE_VILLAGE_URL = 'http://videovillage.seeingspartanburg.com'
 VILLAGE_REGISTER_ENDPOINT = '{0}/api/pis/register/'.format(BASE_VILLAGE_URL)
 VILLAGE_WINDOWS_ENDPOINT = '{0}/api/windows/'.format(BASE_VILLAGE_URL)
 
-PI_HARDWARE_ADDRESS = get_hardware_address('eth0')
-
 VILLAGE_REQUEST_HEADERS = {
     'X-HUBOLOGY-VIDEO-VILLAGE-PI': PI_HARDWARE_ADDRESS
 }
-
-video_village_pi_id = None
 
 
 def register_pi():
@@ -51,7 +47,7 @@ def current_show_schedule():
     result = requests.get(VILLAGE_WINDOWS_ENDPOINT,
                           headers=VILLAGE_REQUEST_HEADERS,
                           params={
-                            'window': 1,
+                            'mac_address': PI_HARDWARE_ADDRESS,
                             'show_date': today.strftime('%Y-%m-%d')
                           })
 

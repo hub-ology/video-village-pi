@@ -1,0 +1,12 @@
+[Unit]
+Description=ngrok
+
+[Service]
+Restart=always
+RestartSec=10
+TimeoutStartSec=0
+ExecStart=/home/pi/ngrok start -config /home/pi/ngrok.yml pivideo
+
+[Install]
+RequiredBy=pivideo.service
+WantedBy=multi-user.target

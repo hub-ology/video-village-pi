@@ -1,0 +1,8 @@
+console_ui: false
+update: false
+tunnels:
+  pivideo:
+    proto: http
+    addr: 5000
+    inspect: false
+    bind_tls: true

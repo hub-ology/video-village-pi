@@ -47,10 +47,16 @@ class PhotoOverlay(object):
 
     _LAUNCH_CMD = '/usr/local/bin/pngview -l {layer} {photofile} -x {x} -y {y}'
 
-    def __init__(self, photofile=None, title='', subtitle='', layer=2, x=0, y=0):
+    def __init__(self, photofile=None, title='', subtitle='', layer=2, x=0, y=0,
+                 finished_callback=None, duration=None):
         self.layer = layer
         self.x = x
         self.y = y
+        self.finished_callback = finished_callback
+        if duration is None:
+            self.duration = 30
+        else:
+            self.duration = duration
 
         self.photo = photofile
         if self.photo is None:
@@ -61,6 +67,15 @@ class PhotoOverlay(object):
         cmd = self._LAUNCH_CMD.format(layer=layer, photofile=self.photo,
                                       x=self.x, y=self.y)
         self._process = pexpect.spawn(cmd)
+
+        self._duration_thread = Thread(target=self.display_duration)
+        self._duration_thread.start()
+
+    def display_duration(self):
+        sleep(self.duration)
+        self.stop()
+        if self.finished_callback:
+            self.finished_callback()
 
     def construct_lower_third_overlay(self, title, subtitle):
         title_font = ImageFont.truetype(OVERLAY_TITLE_FONT ,150)
@@ -126,7 +141,7 @@ class Player(object):
             (self.audio['channels'], self.audio['rate'],
              self.audio['bps']) = [int(x) for x in audio_props[1:]]
         except AttributeError:
-            # this is due to videos with no audio
+            # this is due to entries with no audio
             pass
 
         self.finished = False
@@ -149,6 +164,7 @@ class Player(object):
             if index == 1: continue
             elif index in (2, 3):
                 self.finished = True
+                self.stop()
                 if self.finished_callback:
                     self.finished_callback()
                 break
@@ -177,48 +193,53 @@ class Player(object):
 
 class PlayList(object):
 
-    def __init__(self, videos, loop=True):
-        if videos is None:
-            videos = []
-        self.videos = videos
-        self.video_queue = deque(videos)
+    def __init__(self, entries, loop=True):
+        if entries is None:
+            entries = []
+        self.entries = entries
+        self.queue = deque(entries)
         self.loop = loop
         self.player = None
         self.overlay = None
         self.stopped = True
 
-    def cache_videos(self):
+    def cache_entries(self):
         """
-            Cache videos referenced on the play list
+            Cache entries referenced on the play list
         """
-        for video_entry in self.videos:
-            video_link = video_entry.get('video')
+        for entry in self.entries:
+            video_link = entry.get('video')
             if video_link:
                 pivideo.cache_file(video_link)
+            photo_link = entry.get('photo')
+            if photo_link:
+                pivideo.cache_file(photo_link)
 
-    def next_video(self):
+    def next_entry(self):
         if not self.stopped:
             if self.loop:
-                self.video_queue.rotate(-1)
+                self.queue.rotate(-1)
             else:
-                self.video_queue.popleft()
+                self.queue.popleft()
             self.play()
 
     def play(self):
-        if self.overlay:
-            self.overlay.stop()
-        if self.player:
-            self.player.stop()
-        if len(self.video_queue) > 0:
-            video_entry = self.video_queue[0]
-            if 'video' in video_entry:
-                if 'title' in video_entry:
-                    subtitle = video_entry.get('subtitle', '')
-                    self.overlay = PhotoOverlay(title=video_entry['title'],
-                                                subtitle=subtitle)
-                video_file_name = pivideo.cache_file(video_entry['video'])
-                self.player = Player(video_file_name, finished_callback=self.next_video)
+        if len(self.queue) > 0:
+            entry = self.queue[0]
+            if 'video' in entry:
+                if 'title' in entry:
+                    subtitle = entry.get('subtitle', '')
+                    self.overlay = PhotoOverlay(title=entry['title'],
+                                                subtitle=subtitle, duration=10)
+                video_file_name = pivideo.cache_file(entry['video'])
+                self.player = Player(video_file_name, finished_callback=self.next_entry)
                 self.stopped = False
+            elif 'photo' in entry:
+                photo_file_name = pivideo.cache_file(entry['photo'])
+                duration = entry.get('duration', 60)
+                self.overlay = PhotoOverlay(photofile=photo_file_name,
+                                            duration=duration,
+                                            finished_callback=self.next_entry)
         else:
             self.stopped = True
 
