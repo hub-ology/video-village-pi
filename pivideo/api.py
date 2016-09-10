@@ -109,48 +109,5 @@ def transcode():
 
 @app.route("/status", methods=["GET"])
 def status():
-    global encoder, play_list
-
-    encoder_status = {
-        'active': encoder.is_active() if encoder else False,
-        'queue': [item for item in transcode_queue]
-    }
-
-    play_list_active = play_list is not None and not play_list.stopped
-    play_list_status = {
-        'active': play_list_active,
-        'audio': play_list.player.audio if play_list_active and play_list.player else {},
-        'video': play_list.player.video if play_list_active and play_list.player else {},
-        'mediafile': play_list.player.mediafile if play_list_active and play_list.player else None,
-        'videos': play_list.videos if play_list_active else [],
-        'loop': play_list.loop if play_list_active else False
-    }
-
-    overlay_active = photo_overlay.is_active() if photo_overlay else False
-    overlay_status = {
-        'active': overlay_active,
-        'photo': photo_overlay.photo if photo_overlay else None,
-        'layer': photo_overlay.layer if photo_overlay else None,
-        'x': photo_overlay.x if photo_overlay else None,
-        'y': photo_overlay.y if photo_overlay else None
-    }
-
-    projector_status = {
-        "connected": False
-    }
-
-    try:
-        with Projector() as p:
-            projector_status['on'] = p.is_on()
-            projector_status['connected'] = True
-    except:
-        logger.exception("Unable to determine current projector status.  Is it connected?")
-
-    scheduled_jobs = [str(job) for job in schedule.jobs]
-
-    return flask.jsonify(hardware_address=get_hardware_address('eth0'),
-                         scheduled_jobs=scheduled_jobs,
-                         encoder=encoder_status,
-                         play_list=play_list_status,
-                         overlay=overlay_status,
-                         projector=projector_status)
+    status_info = pivideo.current_status()
+    return flask.jsonify(status_info)

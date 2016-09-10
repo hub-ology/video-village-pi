@@ -1,6 +1,20 @@
 # set up fresh raspbian jessy lite install for video village usage
 # https://downloads.raspberrypi.org/raspbian_lite_latest
+
+unzip-strip() (
+    local zip=$1
+    local dest=${2:-.}
+    local temp=$(mktemp -d) && unzip -d "$temp" "$zip" && mkdir -p "$dest" &&
+    shopt -s dotglob && local f=("$temp"/*) &&
+    if (( ${#f[@]} == 1 )) && [[ -d "${f[0]}" ]] ; then
+        mv "$temp"/*/* "$dest"
+    else
+        mv "$temp"/* "$dest"
+    fi && rmdir "$temp"/* "$temp"
+)
+
 sudo apt-get update
+sudo apt-get upgrade
 
 # Video Village Pis will use omxplayer for video playback
 sudo apt-get install -y omxplayer
@@ -43,6 +57,9 @@ curl -L https://bitbucket.org/pypy/pypy/downloads/pypy2-v5.3.1-linux-armhf-raspb
      -o pypy2-v5.3.1-linux-armhf-raspbian.tar.bz2
 sudo tar -xjf pypy2-v5.3.1-linux-armhf-raspbian.tar.bz2 -C /usr/local --strip-components=1
 
+curl -L https://github.com/hub-ology/video-village-pi/archive/master.zip -o video-village-pi.zip
+unzip-strip video-village-pi.zip
+
 virtualenv -p pypy video-env
 source video-env/bin/activate
 pip install --upgrade pip
@@ -53,10 +70,14 @@ sudo mkdir -p /file_cache
 sudo chmod 777 /file_cache
 
 #set up services to keep video village pi API running after restarts, etc
-sudo cp pivideo.service /etc/systemd/system/pivideo.service
+sudo cp systemd/pivideo.service /etc/systemd/system/pivideo.service
 sudo systemctl enable /etc/systemd/system/pivideo.service
 sudo systemctl start pivideo.service
 
-#TODO: use nginx with https://letsencrypt.org for SSL certificate management
+#set up ngrok tunnel services for remote access and management
+sudo cp systemd/ngrok.service /etc/systemd/system/ngrok.service
+sudo systemctl enable /etc/systemd/system/ngrok.service
+sudo systemctl start ngrok.service
 
-#TODO: configure remote access and monitoring
+echo "Be sure to set gpu_mem=128 (or a higher value) in /boot/config.txt for best HD video handling"
+#TODO: also set GPU memory value to at least `gpu_mem=128` in /boot/config.txt ?

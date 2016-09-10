@@ -64,7 +64,7 @@ def post_show_task():
         return schedule.CancelJob
 
 
-def showtime_task(play_list_videos, loop=False):
+def showtime_task(play_list_entries, loop=False):
     """
         This task is used to kick off a show at a scheduled time.
         It is provided with play list data based on the Video Village Window API
@@ -72,7 +72,7 @@ def showtime_task(play_list_videos, loop=False):
     """
     global play_list
     try:
-        play_list = omx.PlayList(play_list_videos, loop=loop)
+        play_list = omx.PlayList(play_list_entries, loop=loop)
         play_list.play()
     except:
         logger.exception('Problem starting scheduled play list')
@@ -81,13 +81,13 @@ def showtime_task(play_list_videos, loop=False):
         return schedule.CancelJob
 
 
-def cache_videos_task(play_list_videos):
+def cache_videos_task(play_list_entries):
     """
         Ensure all videos referenced in a play list are cached locally on the pi
     """
     try:
-        play_list = omx.PlayList(play_list_videos)
-        play_list.cache_videos()
+        play_list = omx.PlayList(play_list_entries)
+        play_list.cache_entries()
     except:
         logger.exception('Problem caching videos')
     else:
@@ -95,14 +95,14 @@ def cache_videos_task(play_list_videos):
         return schedule.CancelJob
 
 
-def schedule_show(start_time, end_time, play_list_videos, loop=False):
+def schedule_show(start_time, end_time, play_list_entries, loop=False):
     """
         Establish scheduled tasks necessary for a future show
     """
-    schedule.every(1).seconds.do(cache_videos_task, play_list_videos)
+    schedule.every(1).seconds.do(cache_videos_task, play_list_entries)
     pre_show_time = (arrow.get(start_time, 'HH:mm') - datetime.timedelta(minutes=2)).format('HH:mm')
     schedule.every().day.at(pre_show_time).do(pre_show_task)
-    schedule.every().day.at(start_time).do(showtime_task, play_list_videos, loop=loop)
+    schedule.every().day.at(start_time).do(showtime_task, play_list_entries, loop=loop)
     schedule.every().day.at(end_time).do(post_show_task)
 
 
