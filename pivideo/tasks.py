@@ -6,7 +6,7 @@ import schedule
 from pivideo import play_list
 from pivideo import omx
 from pivideo.projector import Projector
-from pivideo.sync import register_pi, current_show_schedule
+from pivideo.sync import register_pi, current_show_schedule, report_current_pi_status
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,17 @@ def registration_task():
             return schedule.CancelJob
     except:
         logger.exception('Problem registering this Pi with the Video Village')
+
+
+def report_pi_status_task():
+    """
+        This task will periodically send Pi status information back to the
+        Video Village system.
+    """
+    try:
+        report_current_pi_status()
+    except:
+        logger.exception('Problem sending Pi status to the Video Village')
 
 
 def pre_show_task():
@@ -53,13 +64,17 @@ def post_show_task():
     global play_list
 
     try:
-        with Projector() as projector:
-            if projector.is_on():
-                projector.power_off()
         if play_list:
             play_list.stop()
     except:
-        logger.exception('Problem executing post show clean up')
+        logger.exception('Problem stopping play list during post show clean up')
+
+    try:
+        with Projector() as projector:
+            if projector.is_on():
+                projector.power_off()
+    except:
+        logger.exception('Problem powering off projector during post show clean up.  Was it connected and turned on?')
     finally:
         return schedule.CancelJob
 
@@ -99,8 +114,17 @@ def schedule_show(start_time, end_time, play_list_entries, loop=False):
     """
         Establish scheduled tasks necessary for a future show
     """
-    schedule.every(1).seconds.do(cache_videos_task, play_list_entries)
+    # remove any existing show related tasks
+    show_task_names = ('cache_videos_task', 'pre_show_task', 'showtime_task', 'post_show_task')
+    jobs_to_cancel = []
+    for job in schedule.jobs:
+        if job.job_func.func.func_name in show_task_names:
+            jobs_to_cancel.append(job)
+    for job in jobs_to_cancel:
+        schedule.cancel_job(job)
+
     pre_show_time = (arrow.get(start_time, 'HH:mm') - datetime.timedelta(minutes=2)).format('HH:mm')
+    schedule.every(1).seconds.do(cache_videos_task, play_list_entries)
     schedule.every().day.at(pre_show_time).do(pre_show_task)
     schedule.every().day.at(start_time).do(showtime_task, play_list_entries, loop=loop)
     schedule.every().day.at(end_time).do(post_show_task)
@@ -130,3 +154,4 @@ def setup_core_tasks():
     """
     schedule.every(1).seconds.do(registration_task)
     schedule.every(30).minutes.do(fetch_show_schedule_task)
+    schedule.every(15).minutes.do(report_pi_status_task)
