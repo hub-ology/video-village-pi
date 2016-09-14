@@ -13,10 +13,13 @@ logger = logging.getLogger(__name__)
 BASE_VILLAGE_URL = 'http://videovillage.seeingspartanburg.com'
 VILLAGE_REGISTER_ENDPOINT = '{0}/api/pis/register/'.format(BASE_VILLAGE_URL)
 VILLAGE_WINDOWS_ENDPOINT = '{0}/api/windows/'.format(BASE_VILLAGE_URL)
+VILLAGE_PI_STATUS_ENDPOINT = '{0}/api/pis/{1}/status/'.format(BASE_VILLAGE_URL, '{0}')
 
 VILLAGE_REQUEST_HEADERS = {
     'X-HUBOLOGY-VIDEO-VILLAGE-PI': PI_HARDWARE_ADDRESS
 }
+
+video_village_pi_id = None
 
 
 def register_pi():
@@ -26,13 +29,28 @@ def register_pi():
         video village pi id for later use.
     """
     global video_village_pi_id
-
     result = requests.post(VILLAGE_REGISTER_ENDPOINT,
                            headers=VILLAGE_REQUEST_HEADERS,
                            json={'mac_address': PI_HARDWARE_ADDRESS})
     if result.status_code == 200:
         registration_info = result.json()
         video_village_pi_id = registration_info.get('id')
+        return True
+
+    return False
+
+
+def report_current_pi_status():
+    """
+        Report current Pi status information to the Video Village system
+    """
+    global video_village_pi_id
+    from pivideo import current_status
+
+    result = requests.post(VILLAGE_PI_STATUS_ENDPOINT.format(video_village_pi_id),
+                           headers=VILLAGE_REQUEST_HEADERS,
+                           json=current_status())
+    if result.status_code == 200:
         return True
 
     return False

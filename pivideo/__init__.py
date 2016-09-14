@@ -20,7 +20,7 @@ import threading
 import time
 from urlparse import urlparse
 from pivideo import omx
-from pivideo.tasks import registration_task, fetch_show_schedule_task, setup_core_tasks
+from pivideo.tasks import setup_core_tasks
 from pivideo.projector import Projector
 
 FILE_CACHE = '/file_cache'
