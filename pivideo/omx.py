@@ -107,7 +107,7 @@ class Player(object):
     _DONE_REXP = re.compile(r"have a nice day.*")
     _DURATION_REXP = re.compile(r".*Duration: (\s),.*")
 
-    _LAUNCH_CMD = '/usr/bin/omxplayer -s %s %s'
+    _LAUNCH_CMD = '/usr/bin/omxplayer -o both -s %s %s'
     _PAUSE_CMD = 'p'
     _TOGGLE_SUB_CMD = 's'
     _QUIT_CMD = 'q'
@@ -240,6 +240,7 @@ class PlayList(object):
                 self.overlay = PhotoOverlay(photofile=photo_file_name,
                                             duration=duration,
                                             finished_callback=self.next_entry)
+                self.stopped = False
         else:
             self.stopped = True
 
