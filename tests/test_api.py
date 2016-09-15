@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import json
 from pivideo.api import app
 import nose
+import schedule
 
 
 def test_status_api():
@@ -29,6 +30,40 @@ def test_play_stop():
         response_data = json.loads(response.data)
         nose.tools.assert_equals('stopped', response_data['status'])
 
+
+def test_play_scheduled():
+    """
+        Verify play API schedule operation to queue up a show in the future
+    """
+    initial_job_count = len(schedule.jobs)
+    with app.test_client() as client:
+        request_data = {
+            "play_list": [
+                {
+                    "photo": "https://s3.amazonaws.com/pivideo-testing/ssnl_logo.png",
+                    "duration": 5
+                },
+                {
+                    "video": "https://s3.amazonaws.com:443/hubology-video-village-media/media/DJI_0127.MOV"
+                }
+            ],
+            "loop": True,
+            "start_time": "04:00",
+            "end_time": "04:30"
+        }
+        response = client.post('/play', data=json.dumps(request_data),
+                               content_type='application/json')
+        nose.tools.assert_equals(200, response.status_code)
+        response_data = json.loads(response.data)
+        nose.tools.assert_equals('scheduled', response_data['status'])
+        job_count = len(schedule.jobs)
+        task_names = [job.job_func.func.func_name for job in schedule.jobs]
+        nose.tools.assert_equals(job_count, initial_job_count + 4)
+        nose.tools.assert_equals(task_names.count('cache_files_task'), 1)
+        nose.tools.assert_equals(task_names.count('pre_show_task'), 1)
+        nose.tools.assert_equals(task_names.count('showtime_task'), 1)
+        nose.tools.assert_equals(task_names.count('post_show_task'), 1)
+        schedule.clear()
 
 def test_projector_on_not_connected():
     """

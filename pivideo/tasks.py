@@ -96,7 +96,7 @@ def showtime_task(play_list_entries, loop=False):
         return schedule.CancelJob
 
 
-def cache_videos_task(play_list_entries):
+def cache_files_task(play_list_entries):
     """
         Ensure all videos referenced in a play list are cached locally on the pi
     """
@@ -115,7 +115,7 @@ def schedule_show(start_time, end_time, play_list_entries, loop=False):
         Establish scheduled tasks necessary for a future show
     """
     # remove any existing show related tasks
-    show_task_names = ('cache_videos_task', 'pre_show_task', 'showtime_task', 'post_show_task')
+    show_task_names = ('cache_files_task', 'pre_show_task', 'showtime_task', 'post_show_task')
     jobs_to_cancel = []
     for job in schedule.jobs:
         if job.job_func.func.func_name in show_task_names:
@@ -124,7 +124,7 @@ def schedule_show(start_time, end_time, play_list_entries, loop=False):
         schedule.cancel_job(job)
 
     pre_show_time = (arrow.get(start_time, 'HH:mm') - datetime.timedelta(minutes=2)).format('HH:mm')
-    schedule.every(1).seconds.do(cache_videos_task, play_list_entries)
+    schedule.every(1).seconds.do(cache_files_task, play_list_entries)
     schedule.every().day.at(pre_show_time).do(pre_show_task)
     schedule.every().day.at(start_time).do(showtime_task, play_list_entries, loop=loop)
     schedule.every().day.at(end_time).do(post_show_task)
