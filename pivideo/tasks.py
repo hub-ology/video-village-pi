@@ -2,6 +2,8 @@ from __future__ import absolute_import
 import arrow
 import datetime
 import logging
+import glob
+import requests
 import schedule
 from pivideo import play_list
 from pivideo import omx
@@ -9,6 +11,75 @@ from pivideo.projector import Projector
 from pivideo.sync import register_pi, current_show_schedule, report_current_pi_status
 
 logger = logging.getLogger(__name__)
+
+scheduled_show_active = False
+
+
+def current_status():
+    """
+        Construct status information dictionary suitable for use
+        with status reporting / status API
+    """
+    from pivideo import play_list, photo_overlay, encoder, transcode_queue, PI_HARDWARE_ADDRESS, cpu_temp
+
+    encoder_status = {
+        'active': encoder.is_active() if encoder else False,
+        'queue': [item for item in transcode_queue]
+    }
+
+    play_list_active = play_list is not None and not play_list.stopped
+    play_list_status = {
+        'active': play_list_active,
+        'audio': play_list.player.audio if play_list_active and play_list.player else {},
+        'video': play_list.player.video if play_list_active and play_list.player else {},
+        'mediafile': play_list.player.mediafile if play_list_active and play_list.player else None,
+        'entries': play_list.entries if play_list_active else [],
+        'loop': play_list.loop if play_list_active else False
+    }
+
+    overlay_active = photo_overlay.is_active() if photo_overlay else False
+    overlay_status = {
+        'active': overlay_active,
+        'photo': photo_overlay.photo if photo_overlay else None,
+        'layer': photo_overlay.layer if photo_overlay else None,
+        'x': photo_overlay.x if photo_overlay else None,
+        'y': photo_overlay.y if photo_overlay else None
+    }
+
+    projector_status = {
+        "connected": False
+    }
+
+    try:
+        with Projector() as p:
+            projector_status['on'] = p.is_on()
+            projector_status['connected'] = True
+    except:
+        logger.exception("Unable to determine current projector status.  Is it connected?")
+
+    scheduled_jobs = [str(job) for job in schedule.jobs]
+
+    tunnel_info = {}
+    try:
+        tunnels_response = requests.get('http://localhost:4040/api/tunnels')
+        if tunnels_response.status_code == 200:
+            tunnels = tunnels_response.json().get('tunnels', [])
+            for tunnel in tunnels:
+                tunnel_info[tunnel['name']] = tunnel.get('public_url')
+    except:
+        logger.exception('Unable to determine ngrok tunnel information')
+
+    return {
+        'hardware_address': PI_HARDWARE_ADDRESS,
+        'file_cache': glob.glob('/file_cache/*'),
+        'scheduled_jobs': scheduled_jobs,
+        'encoder': encoder_status,
+        'play_list': play_list_status,
+        'overlay': overlay_status,
+        'projector': projector_status,
+        'tunnels': tunnel_info,
+        'cpu_temp': cpu_temp.temperature if cpu_temp else None
+    }
 
 
 def registration_task():
@@ -43,12 +114,17 @@ def pre_show_task():
         the show.  This primarily is to power on the attached projector
         and ensure the projector is properly configured.
     """
+    global scheduled_show_active
+
     try:
+        scheduled_show_active = True
         with Projector() as projector:
             if projector.power_on():
                 projector.reset_settings()
                 projector.rear_table_position()
                 projector.input_source_hdmi()
+
+        report_pi_status_task()
     except:
         logger.exception('Problem executing pre show set up')
     finally:
@@ -62,8 +138,10 @@ def post_show_task():
         Post show
     """
     global play_list
+    global scheduled_show_active
 
     try:
+        scheduled_show_active = False
         if play_list:
             play_list.stop()
     except:
@@ -73,6 +151,8 @@ def post_show_task():
         with Projector() as projector:
             if projector.is_on():
                 projector.power_off()
+
+        report_pi_status_task()
     except:
         logger.exception('Problem powering off projector during post show clean up.  Was it connected and turned on?')
     finally:
@@ -86,9 +166,13 @@ def showtime_task(play_list_entries, loop=False):
         JSON.
     """
     global play_list
+    global scheduled_show_active
+
     try:
+        scheduled_show_active = True
         play_list = omx.PlayList(play_list_entries, loop=loop)
         play_list.play()
+        report_pi_status_task()
     except:
         logger.exception('Problem starting scheduled play list')
     finally:
@@ -103,6 +187,7 @@ def cache_files_task(play_list_entries):
     try:
         play_list = omx.PlayList(play_list_entries)
         play_list.cache_entries()
+        report_pi_status_task()
     except:
         logger.exception('Problem caching videos')
     else:
@@ -123,11 +208,21 @@ def schedule_show(start_time, end_time, play_list_entries, loop=False):
     for job in jobs_to_cancel:
         schedule.cancel_job(job)
 
-    pre_show_time = (arrow.get(start_time, 'HH:mm') - datetime.timedelta(minutes=2)).format('HH:mm')
+    try:
+        start_time_value = arrow.get(start_time, 'HH:mm')
+    except ValueError:
+        start_time_value = arrow.get(start_time, 'HH:mm:ss')
+
+    try:
+        end_time_value = arrow.get(end_time, 'HH:mm')
+    except ValueError:
+        end_time_value = arrow.get(end_time, 'HH:mm:ss')
+
+    pre_show_time = (start_time_value - datetime.timedelta(minutes=2)).format('HH:mm')
     schedule.every(1).seconds.do(cache_files_task, play_list_entries)
     schedule.every().day.at(pre_show_time).do(pre_show_task)
-    schedule.every().day.at(start_time).do(showtime_task, play_list_entries, loop=loop)
-    schedule.every().day.at(end_time).do(post_show_task)
+    schedule.every().day.at(start_time_value.format('HH:mm')).do(showtime_task, play_list_entries, loop=loop)
+    schedule.every().day.at(end_time_value.format('HH:mm')).do(post_show_task)
 
 
 def fetch_show_schedule_task():
@@ -136,13 +231,33 @@ def fetch_show_schedule_task():
         The show information includes the play list of videos
         that the Pi should display during the show.
     """
+    global scheduled_show_active
+
     try:
-        current_show = current_show_schedule()
-        if current_show:
+        current_show_info = current_show_schedule()
+        # we'll only update our scheduled show tasks when we get back
+        # information for our device and when there's not an active
+        # show in progress (to avoid any disruption to the current show)
+        if current_show_info and not scheduled_show_active:
             # Set up scheduled tasks to run the show
-            # TODO: map village windows API response to a scheduled pi show
-            #schedule_show('', '', [])
-            pass
+            loop = current_show_info.get('loop', False)
+            play_list_entries = []
+            schedule_playlist = current_show_info.get('playlist', {})
+            for item in schedule_playlist.get('videosegment_set', []):
+                video_link = item.get('video', {}).get('file')
+                title = item.get('video', {}).get('title', '')
+                subtitle = item.get('video', {}).get('uploader_name', '')
+                play_list_entries.append({
+                    'video': video_link
+                })
+
+            show = current_show_info.get('show', {})
+            for item in show.get('scheduleitem_set', []):
+                start_time = item.get('start_time')
+                end_time = item.get('stop_time')
+                if start_time and end_time:
+                    schedule_show(start_time, end_time, play_list_entries, loop=loop)
+        report_pi_status_task()
     except:
         logger.exception('Problem checking for show schedule information')
 
@@ -153,5 +268,5 @@ def setup_core_tasks():
         This includes tasks to register the pi, check for scheduled show information, etc.
     """
     schedule.every(1).seconds.do(registration_task)
-    schedule.every(30).minutes.do(fetch_show_schedule_task)
     schedule.every(15).minutes.do(report_pi_status_task)
+    schedule.every(30).minutes.do(fetch_show_schedule_task)

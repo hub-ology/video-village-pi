@@ -45,7 +45,7 @@ def report_current_pi_status():
         Report current Pi status information to the Video Village system
     """
     global video_village_pi_id
-    from pivideo import current_status
+    from pivideo.tasks import current_status
 
     result = requests.post(VILLAGE_PI_STATUS_ENDPOINT.format(video_village_pi_id),
                            headers=VILLAGE_REQUEST_HEADERS,
@@ -69,9 +69,10 @@ def current_show_schedule():
                             'show_date': today.strftime('%Y-%m-%d')
                           })
 
-    logger.info('{0} {1}'.format(result.status_code, result.content))
+    logger.debug('GET {0} (Status {1}) {2}'.format(result.url, result.status_code, result.content))
     if result.status_code == 200:
         schedule_information = result.json()
-        return schedule_information
+        if len(schedule_information) == 1:
+            return schedule_information[0]
 
     return None
