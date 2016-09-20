@@ -9,7 +9,7 @@ from pivideo.networking import get_ip_address, get_hardware_address
 from pivideo import encoder, transcode_queue, photo_overlay, play_list
 from pivideo import omx
 from pivideo.projector import Projector
-from pivideo.tasks import schedule_show
+from pivideo.tasks import schedule_show, current_status, report_pi_status_task
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,8 @@ def projector_on():
             success = p.power_on()
     except:
         logger.exception('Unable to turn on projector.  Is it connected?')
+    finally:
+        report_pi_status_task()
 
     return flask.jsonify(status=success)
 
@@ -91,7 +93,9 @@ def projector_off():
             success = p.power_off()
     except:
         logger.exception('Unable to turn off projector.  Is it connected?')
-
+    finally:
+        report_pi_status_task()
+    
     return flask.jsonify(status=success)
 
 
@@ -109,5 +113,5 @@ def transcode():
 
 @app.route("/status", methods=["GET"])
 def status():
-    status_info = pivideo.current_status()
+    status_info = current_status()
     return flask.jsonify(status_info)

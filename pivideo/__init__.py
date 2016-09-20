@@ -1,14 +1,4 @@
 from __future__ import absolute_import
-import logging
-from pivideo.networking import get_hardware_address
-
-logging.basicConfig(format='%(asctime)s	%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
-
-play_list = None
-photo_overlay = None
-encoder = None
-PI_HARDWARE_ADDRESS = get_hardware_address('eth0')
-
 import atexit
 import collections
 import contextlib
@@ -19,15 +9,31 @@ import schedule
 import threading
 import time
 from urlparse import urlparse
+import logging
+from pivideo.networking import get_hardware_address
+
+logging.basicConfig(format='%(asctime)s	%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
+
+play_list = None
+photo_overlay = None
+encoder = None
+transcode_queue = collections.deque()
+PI_HARDWARE_ADDRESS = get_hardware_address('eth0')
+
 from pivideo import omx
-from pivideo.tasks import setup_core_tasks
+from pivideo.tasks import setup_core_tasks, registration_task, report_pi_status_task, fetch_show_schedule_task
 from pivideo.projector import Projector
+from gpiozero import CPUTemperature
 
 FILE_CACHE = '/file_cache'
 
 logger = logging.getLogger(__name__)
 
-transcode_queue = collections.deque()
+try:
+    cpu_temp = CPUTemperature()
+except IOError:
+    cpu_temp = None
+
 
 def cache_file(file_reference):
     """
@@ -63,9 +69,17 @@ def seconds_until_next_heartbeat():
 
 def heartbeat():
     global encoder
+    global photo_overlay
+    global play_list
     global heartbeat_timer
 
     setup_core_tasks()
+    # run some of the configured core tasks immediately on start up
+    # and then on the normal schedule afterward
+    registration_task()
+    fetch_show_schedule_task()
+    report_pi_status_task()
+
 
     while True:
         try:
@@ -95,69 +109,15 @@ heartbeat_thread.start()
 
 
 def shutdown_handler():
+    global encoder
+    global photo_overlay
+    global play_list
+
     if encoder:
         encoder.stop()
     if photo_overlay:
         photo_overlay.stop()
+    if play_list:
+        play_list.stop()
 
 atexit.register(shutdown_handler)
-
-
-def current_status():
-
-    encoder_status = {
-        'active': encoder.is_active() if encoder else False,
-        'queue': [item for item in transcode_queue]
-    }
-
-    play_list_active = play_list is not None and not play_list.stopped
-    play_list_status = {
-        'active': play_list_active,
-        'audio': play_list.player.audio if play_list_active and play_list.player else {},
-        'video': play_list.player.video if play_list_active and play_list.player else {},
-        'mediafile': play_list.player.mediafile if play_list_active and play_list.player else None,
-        'entries': play_list.entries if play_list_active else [],
-        'loop': play_list.loop if play_list_active else False
-    }
-
-    overlay_active = photo_overlay.is_active() if photo_overlay else False
-    overlay_status = {
-        'active': overlay_active,
-        'photo': photo_overlay.photo if photo_overlay else None,
-        'layer': photo_overlay.layer if photo_overlay else None,
-        'x': photo_overlay.x if photo_overlay else None,
-        'y': photo_overlay.y if photo_overlay else None
-    }
-
-    projector_status = {
-        "connected": False
-    }
-
-    try:
-        with Projector() as p:
-            projector_status['on'] = p.is_on()
-            projector_status['connected'] = True
-    except:
-        logger.exception("Unable to determine current projector status.  Is it connected?")
-
-    scheduled_jobs = [str(job) for job in schedule.jobs]
-
-    tunnel_info = {}
-    try:
-        tunnels_response = requests.get('http://localhost:4040/api/tunnels')
-        if tunnels_response.status_code == 200:
-            tunnels = tunnels_response.json().get('tunnels', [])
-            for tunnel in tunnels:
-                tunnel_info[tunnel['name']] = tunnel.get('public_url')
-    except:
-        logger.exception('Unable to determine ngrok tunnel information')
-
-    return {
-        'hardware_address': PI_HARDWARE_ADDRESS,
-        'scheduled_jobs': scheduled_jobs,
-        'encoder': encoder_status,
-        'play_list': play_list_status,
-        'overlay': overlay_status,
-        'projector': projector_status,
-        'tunnels': tunnel_info
-    }
