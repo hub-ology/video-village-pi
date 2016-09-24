@@ -19,6 +19,9 @@ def test_status_api():
         nose.tools.assert_false(response_data['play_list']['active'])
         nose.tools.assert_false(response_data['projector']['connected'])
         nose.tools.assert_equals([], response_data['encoder']['queue'])
+        nose.tools.assert_equals(response_data['version'], 'v0.5')
+        nose.tools.assert_in('hardware_address', response_data)
+        nose.tools.assert_in('ip_address', response_data)
 
 def test_play_stop():
     """

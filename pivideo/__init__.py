@@ -10,15 +10,18 @@ import threading
 import time
 from urlparse import urlparse
 import logging
-from pivideo.networking import get_hardware_address
+from pivideo.networking import get_hardware_address, get_ip_address
 
 logging.basicConfig(format='%(asctime)s	%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
+
+version = 'v0.5'
 
 play_list = None
 photo_overlay = None
 encoder = None
 transcode_queue = collections.deque()
 PI_HARDWARE_ADDRESS = get_hardware_address('eth0')
+PI_IP_ADDRESS = get_ip_address('eth0')
 
 from pivideo import omx
 from pivideo.tasks import setup_core_tasks, registration_task, report_pi_status_task, fetch_show_schedule_task
