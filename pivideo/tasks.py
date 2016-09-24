@@ -21,7 +21,9 @@ def current_status():
         Construct status information dictionary suitable for use
         with status reporting / status API
     """
-    from pivideo import play_list, photo_overlay, encoder, transcode_queue, PI_HARDWARE_ADDRESS, cpu_temp, PI_IP_ADDRESS, version
+    from pivideo import (play_list, photo_overlay, encoder, transcode_queue,
+                         PI_HARDWARE_ADDRESS, cpu_temp, PI_IP_ADDRESS, version,
+                         disk_usage, file_cache_size)
 
     encoder_status = {
         'active': encoder.is_active() if encoder else False,
@@ -73,6 +75,9 @@ def current_status():
     except:
         logger.exception('Unable to determine ngrok tunnel information')
 
+    sd_card = disk_usage()
+    sd_card['file_cache'] = file_cache_size()
+
     return {
         'hardware_address': PI_HARDWARE_ADDRESS,
         'ip_address': PI_IP_ADDRESS,
@@ -84,7 +89,8 @@ def current_status():
         'projector': projector_status,
         'tunnels': tunnel_info,
         'cpu_temp': cpu_temp.temperature if cpu_temp else None,
-        'version': version
+        'version': version,
+        'sd_card': sd_card
     }
 
 
