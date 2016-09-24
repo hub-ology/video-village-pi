@@ -5,6 +5,7 @@ import logging
 import glob
 import requests
 import schedule
+import time
 from pivideo import play_list
 from pivideo import omx
 from pivideo.projector import Projector
@@ -53,6 +54,9 @@ def current_status():
     try:
         with Projector() as p:
             projector_status['on'] = p.is_on()
+            if projector_status['on']:
+                projector_status['position'] = p.position_status()
+                projector_status['input_source'] = p.input_source()
             projector_status['connected'] = True
     except:
         logger.exception("Unable to determine current projector status.  Is it connected?")
@@ -120,9 +124,13 @@ def pre_show_task():
         scheduled_show_active = True
         with Projector() as projector:
             if projector.power_on():
+                time.sleep(5)
                 projector.reset_settings()
+                time.sleep(5)
                 projector.rear_table_position()
+                time.sleep(3)
                 projector.input_source_hdmi()
+                time.sleep(3)
 
         report_pi_status_task()
     except:
