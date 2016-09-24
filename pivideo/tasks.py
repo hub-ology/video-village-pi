@@ -21,7 +21,7 @@ def current_status():
         Construct status information dictionary suitable for use
         with status reporting / status API
     """
-    from pivideo import play_list, photo_overlay, encoder, transcode_queue, PI_HARDWARE_ADDRESS, cpu_temp
+    from pivideo import play_list, photo_overlay, encoder, transcode_queue, PI_HARDWARE_ADDRESS, cpu_temp, PI_IP_ADDRESS, version
 
     encoder_status = {
         'active': encoder.is_active() if encoder else False,
@@ -75,6 +75,7 @@ def current_status():
 
     return {
         'hardware_address': PI_HARDWARE_ADDRESS,
+        'ip_address': PI_IP_ADDRESS,
         'file_cache': glob.glob('/file_cache/*'),
         'scheduled_jobs': scheduled_jobs,
         'encoder': encoder_status,
@@ -82,7 +83,8 @@ def current_status():
         'overlay': overlay_status,
         'projector': projector_status,
         'tunnels': tunnel_info,
-        'cpu_temp': cpu_temp.temperature if cpu_temp else None
+        'cpu_temp': cpu_temp.temperature if cpu_temp else None,
+        'version': version
     }
 
 
