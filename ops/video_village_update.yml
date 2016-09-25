@@ -1,0 +1,37 @@
+---
+- hosts: video_village
+  remote_user: pi
+  become: true
+  tasks:
+  - name: download pivideo release
+    get_url:
+      url: https://github.com/hub-ology/video-village-pi/archive/0.5.zip
+      dest: /tmp/pivideo-release.zip
+  - name: clean up pivideo release directory
+    file:
+      path: /tmp/pivideo-release
+      state: absent
+  - name: establish new pivideo release directory
+    file:
+      path: /tmp/pivideo-release
+      state: directory
+      mode: 0755
+  - name: extract new pivideo release
+    shell: unzip /tmp/pivideo-release.zip -d /tmp/pivideo-release
+  - name: stop pivideo service to apply new release
+    service: name=pivideo.service state=stopped
+  - name: remove previous pivideo installation
+    shell: rm -Rf /home/pi/pivideo
+  - name: copy pivideo files for release
+    shell: cp -R /tmp/pivideo-release/video-village-pi-0.5/pivideo /home/pi
+  - name: copy pivideo requirements.txt for release
+    shell: cp /tmp/pivideo-release/video-village-pi-0.5/requirements.txt /home/pi
+  - name: install any new pivideo requirements
+    pip:
+      requirements: /home/pi/requirements.txt
+      virtualenv: /home/pi/video-env
+  - name: ensure pivideo service is running again following deployment (and enable it at boot)
+    service: name=pivideo.service state=started enabled=yes
+  handlers:
+    - name: restart pivideo
+      service: name=pivideo.service state=restarted
