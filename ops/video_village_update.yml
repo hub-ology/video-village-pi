@@ -1,11 +1,12 @@
 ---
 - hosts: video_village
+  strategy: free
   remote_user: pi
   become: true
   tasks:
   - name: download pivideo release
     get_url:
-      url: https://github.com/hub-ology/video-village-pi/archive/0.5.zip
+      url: https://s3.amazonaws.com/pivideo-testing/pivideo-0.5.zip
       dest: /tmp/pivideo-release.zip
   - name: clean up pivideo release directory
     file:

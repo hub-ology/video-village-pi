@@ -44,3 +44,9 @@ upgrade Pis to a specific release of the pivideo software.
 ```
 ansible-playbook -i ops/video_village_hosts --private-key ~/.ssh/vvprivate-mac.ppk ops/video_village_update.yml
 ```
+
+Install openntpd components and configuration settings appropriate for the Video Village:
+
+```
+ansible-playbook -i ops/video_village_hosts --private-key ~/.ssh/vvprivate-mac.ppk ops/setup_openntpd.yml
+```

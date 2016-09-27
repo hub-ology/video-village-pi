@@ -1,0 +1,34 @@
+---
+- hosts: video_village
+  strategy: free
+  remote_user: pi
+  become: true
+  tasks:
+    - name: Remove exiting ntp
+      apt:
+        name: ntp
+        state: absent
+    - name: install openntpd
+      apt:
+        name: openntpd
+        state: present
+    - name: stop openntpd service
+      service: name=openntpd state=stopped
+    - name: update /etc/default/openntpd
+      copy:
+        src: openntpd
+        dest: /etc/default/openntpd
+        owner: root
+        group: root
+        mode: 0644
+    - name: update /etc/openntpd/ntpd.conf
+      copy:
+        src: ntpd.conf
+        dest: /etc/openntpd/ntpd.conf
+        owner: root
+        group: root
+        mode: 0644
+    - name: ensure openntpd service is running (and enable it at boot)
+      service: name=openntpd state=started enabled=yes
+    - name: enable NTP sync
+      shell: timedatectl set-ntp true
