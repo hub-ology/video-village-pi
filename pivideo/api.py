@@ -11,7 +11,8 @@ from pivideo.networking import get_ip_address, get_hardware_address
 from pivideo import encoder, transcode_queue, photo_overlay, play_list, FILE_CACHE
 from pivideo import omx
 from pivideo.projector import Projector
-from pivideo.tasks import schedule_show, current_status, report_pi_status_task
+from pivideo.tasks import (schedule_show, current_status, report_pi_status_task,
+                           fetch_show_schedule_task)
 
 logger = logging.getLogger(__name__)
 
@@ -135,3 +136,8 @@ def delete_cache():
         return flask.jsonify({
             "removed_files": removed_files
         })
+
+@app.route("/sync", methods=["POST"])
+def synchronize_schedule_and_status():
+    fetch_show_schedule_task()
+    return flask.jsonify(status='ok')
