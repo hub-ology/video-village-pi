@@ -99,3 +99,14 @@ def test_delete_file_cache():
         nose.tools.assert_equals(200, response.status_code)
         response_data = json.loads(response.data)
         nose.tools.assert_in('removed_files', response_data)
+
+
+def test_sync():
+    """
+        Verify proper handling of a POST /sync request to fetch the latest schedule information and push back status information
+    """
+    with app.test_client() as client:
+        response = client.post('/sync', data=json.dumps({}), content_type='application/json')
+        nose.tools.assert_equals(200, response.status_code)
+        response_data = json.loads(response.data)
+        nose.tools.assert_equals('ok', response_data['status'])
