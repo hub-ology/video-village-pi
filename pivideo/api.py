@@ -2,11 +2,13 @@ from __future__ import absolute_import
 import logging
 import flask
 from flask import Flask, request
+import os
 import schedule
+import shutil
 
 import pivideo
 from pivideo.networking import get_ip_address, get_hardware_address
-from pivideo import encoder, transcode_queue, photo_overlay, play_list
+from pivideo import encoder, transcode_queue, photo_overlay, play_list, FILE_CACHE
 from pivideo import omx
 from pivideo.projector import Projector
 from pivideo.tasks import schedule_show, current_status, report_pi_status_task
@@ -95,7 +97,7 @@ def projector_off():
         logger.exception('Unable to turn off projector.  Is it connected?')
     finally:
         report_pi_status_task()
-    
+
     return flask.jsonify(status=success)
 
 
@@ -115,3 +117,21 @@ def transcode():
 def status():
     status_info = current_status()
     return flask.jsonify(status_info)
+
+
+@app.route("/cache", methods=["DELETE"])
+def delete_cache():
+    removed_files = []
+    try:
+        cache_folder = FILE_CACHE
+        for cached_file in os.listdir(cache_folder):
+            file_path = os.path.join(cache_folder, cached_file)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+                removed_files.append(file_path)
+    except:
+        logger.exception('unable to delete all file cache contents')
+    finally:
+        return flask.jsonify({
+            "removed_files": removed_files
+        })

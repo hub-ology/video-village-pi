@@ -88,3 +88,14 @@ def test_projector_off_not_connected():
         nose.tools.assert_equals(200, response.status_code)
         response_data = json.loads(response.data)
         nose.tools.assert_false(response_data['status'])
+
+
+def test_delete_file_cache():
+    """
+        Verify proper handling of a DELETE /cache request to remove all cached files
+    """
+    with app.test_client() as client:
+        response = client.delete('/cache')
+        nose.tools.assert_equals(200, response.status_code)
+        response_data = json.loads(response.data)
+        nose.tools.assert_in('removed_files', response_data)
