@@ -50,3 +50,16 @@ Install openntpd components and configuration settings appropriate for the Video
 ```
 ansible-playbook -i ops/video_village_hosts --private-key ~/.ssh/vvprivate-mac.ppk ops/setup_openntpd.yml
 ```
+
+This helps to keep the time on the Pi sync'ed up for better synchronized shows
+
+
+Restart the pivideo service across the village.   
+```
+ansible-playbook -i ops/video_village_hosts --private-key ~/.ssh/vvprivate-mac.ppk ops/restart_pivideo_service.yml
+```
+
+Clear the file cache data via ansible (instead of via the API):
+```
+ansible-playbook -i ops/video_village_hosts --private-key ~/.ssh/vvprivate-mac.ppk ops/clear_file_cache.yml
+```
