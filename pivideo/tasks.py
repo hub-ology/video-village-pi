@@ -234,7 +234,7 @@ def schedule_show(start_time, end_time, play_list_entries, loop=False):
     except ValueError:
         end_time_value = arrow.get(end_time, 'HH:mm:ss')
 
-    pre_show_time = (start_time_value - datetime.timedelta(minutes=2)).format('HH:mm')
+    pre_show_time = (start_time_value - datetime.timedelta(minutes=5)).format('HH:mm')
     schedule.every(1).seconds.do(cache_files_task, play_list_entries)
     schedule.every().day.at(pre_show_time).do(pre_show_task)
     schedule.every().day.at(start_time_value.format('HH:mm')).do(showtime_task, play_list_entries, loop=loop)
