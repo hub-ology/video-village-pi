@@ -1,0 +1,10 @@
+---
+- hosts: video_village
+  strategy: free
+  remote_user: pi
+  become: true
+  tasks:
+  - name: stop pivideo service
+    service: name=pivideo.service state=stopped
+  - name: ensure pivideo service is running again (and enable it at boot)
+    service: name=pivideo.service state=started enabled=yes

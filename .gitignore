@@ -2,4 +2,4 @@
 *.pyc
 venv*
 ops/video_village_hosts
-ops/video_village_update.retry
+ops/*.retry

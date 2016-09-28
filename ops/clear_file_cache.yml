@@ -1,0 +1,8 @@
+---
+- hosts: video_village
+  strategy: free
+  remote_user: pi
+  become: true
+  tasks:
+    - name: Clear /file_cache contents
+      shell: /bin/rm -rf /file_cache/*
