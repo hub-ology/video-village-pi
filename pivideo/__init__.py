@@ -3,6 +3,7 @@ import atexit
 import collections
 import contextlib
 import datetime
+import hashlib
 import os
 import requests
 import schedule
@@ -38,6 +39,24 @@ except IOError:
     cpu_temp = None
 
 
+def download_file(file_reference, local_filename):
+    """
+    Download a file available via file_reference to local_filename
+    """
+    try:
+        with contextlib.closing(requests.get(file_reference, stream=True)) as response:
+            with open(local_filename, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=1024):
+                    if chunk:
+                        f.write(chunk)
+    except:
+        logger.exception('Problem downloading file: {}'.format(file_reference))
+        # we may have a partial file remaining.  Let's clean that up
+        if os.path.isfile(local_filename):
+            os.remove(local_filename)
+        raise
+
+
 def cache_file(file_reference):
     """
     Locate a cached copy of a file.  If the file reference is not found in the
@@ -51,11 +70,7 @@ def cache_file(file_reference):
         converted_filename = '{0}{1}'.format(url.netloc, url.path.replace('/', '-'))
         local_filename = os.path.join(FILE_CACHE, converted_filename)
         if not os.path.exists(local_filename):
-            with contextlib.closing(requests.get(file_reference, stream=True)) as response:
-                 with open(local_filename, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=1024):
-                        if chunk:
-                            f.write(chunk)
+            download_file(file_reference, local_filename)
         return local_filename
     else:
         if os.path.exists(file_reference):
