@@ -110,3 +110,14 @@ def test_sync():
         nose.tools.assert_equals(200, response.status_code)
         response_data = json.loads(response.data)
         nose.tools.assert_equals('ok', response_data['status'])
+
+
+def test_stream_stop():
+    """
+        Verify stream API stop operation when no video has been played
+    """
+    with app.test_client() as client:
+        response = client.post('/stream', data=json.dumps({}), content_type='application/json')
+        nose.tools.assert_equals(200, response.status_code)
+        response_data = json.loads(response.data)
+        nose.tools.assert_equals('stopped', response_data['status'])

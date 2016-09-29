@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+streamer = None
+
 
 @app.route("/overlay", methods=["POST"])
 def overlay():
@@ -141,3 +143,24 @@ def delete_cache():
 def synchronize_schedule_and_status():
     fetch_show_schedule_task()
     return flask.jsonify(status='ok')
+
+
+@app.route("/stream", methods=["POST"])
+def play_video_stream():
+    global streamer
+    global play_list
+
+    # stop playback if active
+    if play_list:
+        play_list.stop()
+
+    # stop playback of current stream if active
+    if streamer:
+        streamer.stop()
+
+    video = request.json.get('video')
+    if video:
+        streamer = omx.Streamer(video)
+        return flask.jsonify(status='running')
+    else:
+        return flask.jsonify(status='stopped')
