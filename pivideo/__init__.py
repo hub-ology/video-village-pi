@@ -15,7 +15,7 @@ from pivideo.networking import get_hardware_address, get_ip_address
 
 logging.basicConfig(format='%(asctime)s	%(levelname)s:%(name)s:%(message)s', level=logging.INFO)
 
-version = 'v0.5'
+version = 'v0.6'
 
 play_list = None
 photo_overlay = None
