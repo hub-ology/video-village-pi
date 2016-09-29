@@ -250,3 +250,36 @@ class PlayList(object):
             self.overlay.stop()
         if self.player:
             self.player.stop()
+
+
+class Streamer(object):
+
+    _LAUNCH_CMD = '/usr/local/bin/streamlink {} best -np "/usr/bin/omxplayer -o both" --yes-run-as-root'
+    _QUIT_CMD = 'q'
+
+    def __init__(self, stream_url, finished_callback=None):
+        cmd = self._LAUNCH_CMD.format(stream_url)
+        print(cmd)
+        self._process = pexpect.spawn(cmd)
+        self.stream_url = stream_url
+
+        self.finished = False
+        self.finished_callback = finished_callback
+
+        self._monitor_thread = Thread(target=self._monitor_stream)
+        self._monitor_thread.start()
+
+    def _monitor_stream(self):
+        self._process.expect(pexpect.EOF, timeout=None)
+        self.finished = True
+        self.stop()
+        if self.finished_callback:
+            self.finished_callback()
+
+    def is_active(self):
+        return self._process.isalive()
+
+    def stop(self):
+        self.stream_url = None
+        self._process.send(self._QUIT_CMD)
+        self._process.terminate(force=True)
